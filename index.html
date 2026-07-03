@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Balance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* deep autumn, dark theme */
+    --ink: #17110D;        /* espresso background */
+    --panel: #241A14;      /* dark bark, modals/cards */
+    --panel-line: rgba(239,227,210,0.10);
+    --bone: #EFE3D2;       /* warm parchment text */
+    --bone-dim: #C7B6A0;
+    --gold: #C9A227;       /* mustard accent */
+    --sleep: #4B5D34;      /* forest / moss */
+    --food: #8C3A2B;       /* oxblood / maroon */
+    --movement: #C1652F;   /* pumpkin / burnt orange */
+    --warn: #C1652F;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    background: var(--ink);
+    color: var(--bone);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: env(safe-area-inset-top, 20px) 20px calc(env(safe-area-inset-bottom, 20px) + 12px);
+  }
+  .top { width: 100%; max-width: 420px; text-align: center; padding-top: 8px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); font-weight: 600;
+  }
+  h1 {
+    font-family: 'Fraunces', serif; font-weight: 700; font-size: 32px;
+    letter-spacing: -0.01em; margin-top: 2px;
+  }
+  .status-line {
+    font-size: 12px; color: var(--bone-dim); opacity: 0.65; margin-top: 6px; min-height: 16px;
+  }
+  .stage {
+    width: 100%; max-width: 420px; flex: 1;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  svg { width: 100%; height: auto; max-width: 380px; touch-action: manipulation; }
+
+  .vertex-btn { cursor: pointer; }
+  .vertex-hit { fill: transparent; }
+  .vertex-core { transition: transform 0.12s ease; transform-origin: center; transform-box: fill-box; }
+
+  .vlabel {
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px;
+    fill: var(--bone); text-anchor: middle; pointer-events: none;
+  }
+  .vcount {
+    font-family: 'Fraunces', serif; font-weight: 700; font-size: 22px;
+    fill: #17110D; text-anchor: middle; pointer-events: none;
+  }
+
+  .ball { transition: cx 0.7s cubic-bezier(.34,1.4,.4,1), cy 0.7s cubic-bezier(.34,1.4,.4,1); }
+  .ball-shadow { transition: cx 0.7s cubic-bezier(.34,1.4,.4,1), cy 0.7s cubic-bezier(.34,1.4,.4,1); }
+
+  .legend {
+    width: 100%; max-width: 420px; display: flex; justify-content: center;
+    gap: 18px; margin-top: 6px; margin-bottom: 4px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--bone-dim); opacity: 0.8; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  .window-note { text-align: center; font-size: 11px; color: var(--bone-dim); opacity: 0.5; margin-bottom: 14px; }
+
+  .footer {
+    width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .action-row {
+    display: flex; justify-content: center; gap: 18px; flex-wrap: wrap;
+  }
+  .action-row button {
+    background: none; border: none; color: var(--gold); font-size: 12px;
+    font-weight: 600; text-decoration: underline; cursor: pointer; padding: 4px;
+  }
+  .sync-code-line {
+    text-align: center; font-size: 11px; color: var(--bone-dim); opacity: 0.55;
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+    display: none; align-items: center; justify-content: center; z-index: 10; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel); color: var(--bone); border: 1px solid var(--panel-line);
+    border-radius: 18px; padding: 22px 20px; width: 100%; max-width: 360px;
+  }
+  .modal.wide { max-width: 480px; max-height: 84vh; display: flex; flex-direction: column; overflow: hidden; }
+  .modal h2 { font-family: 'Fraunces', serif; font-size: 20px; margin-bottom: 6px; }
+  .modal p { font-size: 12.5px; color: var(--bone-dim); margin-bottom: 14px; line-height: 1.5; }
+  .modal input {
+    width: 100%; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--panel-line); font-family: 'Inter', sans-serif; font-size: 15px;
+    letter-spacing: 0.05em; margin-bottom: 10px; background: #1D1510; color: var(--bone);
+  }
+  .modal-code-display {
+    background: #1D1510; border: 1px solid var(--panel-line); border-radius: 10px; padding: 14px;
+    text-align: center; font-family: 'Fraunces', serif; font-size: 22px;
+    letter-spacing: 0.08em; font-weight: 700; margin-bottom: 10px; user-select: all; color: var(--gold);
+  }
+  .modal-btn-row { display: flex; gap: 8px; margin-top: 4px; }
+  .modal button.primary {
+    flex: 1; background: var(--gold); color: #17110D; border: none; border-radius: 10px;
+    padding: 12px; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .modal button.secondary {
+    flex: 1; background: transparent; color: var(--bone); border: 1px solid var(--panel-line);
+    border-radius: 10px; padding: 12px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .modal-error { font-size: 11.5px; color: #E08A5E; margin-bottom: 8px; min-height: 14px; }
+  .modal-tabs {
+    display: flex; gap: 4px; margin-bottom: 16px; background: rgba(239,227,210,0.06);
+    border-radius: 10px; padding: 3px;
+  }
+  .modal-tab { flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; opacity: 0.55; }
+  .modal-tab.active { background: rgba(239,227,210,0.12); opacity: 1; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  #logPanelEntries.tab-panel.active, #logPanelTrend.tab-panel.active {
+    display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;
+  }
+
+  /* log modal specifics */
+  .log-header-row {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  }
+  .log-close-btn {
+    background: none; border: none; color: var(--bone-dim); font-size: 20px; cursor: pointer; line-height: 1; padding: 4px 8px;
+  }
+  .pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pill {
+    padding: 6px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--panel-line); color: var(--bone-dim); background: transparent;
+  }
+  .pill.active { background: var(--gold); color: #17110D; border-color: var(--gold); }
+  .log-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .sort-btn {
+    background: transparent; border: 1px solid var(--panel-line); color: var(--bone);
+    border-radius: 8px; padding: 7px 10px; font-size: 11.5px; cursor: pointer; font-weight: 600;
+  }
+  .log-table-wrap { flex: 1; overflow-y: auto; border: 1px solid var(--panel-line); border-radius: 10px; }
+  table.log-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.log-table thead th {
+    position: sticky; top: 0; background: #1D1510; text-align: left; padding: 9px 10px;
+    font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--bone-dim);
+    border-bottom: 1px solid var(--panel-line);
+  }
+  table.log-table td { padding: 8px 10px; border-bottom: 1px solid var(--panel-line); color: var(--bone); }
+  table.log-table tr:last-child td { border-bottom: none; }
+  .pillar-chip {
+    display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px;
+  }
+  .empty-log { text-align: center; padding: 30px 10px; color: var(--bone-dim); font-size: 12.5px; }
+  .trend-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .trend-chip {
+    display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 10px;
+    background: rgba(239,227,210,0.05); border: 1px solid var(--panel-line); font-size: 11.5px;
+  }
+  .trend-chip .num { font-family: 'Fraunces', serif; font-weight: 700; font-size: 14px; color: var(--bone); }
+  .trend-chip .lbl { color: var(--bone-dim); }
+  .log-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 10px; }
+  .row-count { font-size: 11px; color: var(--bone-dim); opacity: 0.7; }
+  .export-btn {
+    background: var(--gold); color: #17110D; border: none; border-radius: 10px;
+    padding: 11px 16px; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12.5px; cursor: pointer;
+  }
+
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--panel); color: var(--bone); border: 1px solid var(--panel-line);
+    padding: 10px 18px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+    opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none; z-index: 20; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="eyebrow">Balance</div>
+  <h1>Sleep · Food · Movement</h1>
+  <div class="status-line" id="statusLine">loading…</div>
+</div>
+
+<div class="stage">
+  <svg viewBox="0 0 380 380" id="svgRoot">
+    <polygon id="refTriangle" points="" fill="none" stroke="rgba(239,227,210,0.14)" stroke-width="1.5" />
+    <line id="spoke0" stroke="rgba(239,227,210,0.10)" stroke-width="1"/>
+    <line id="spoke1" stroke="rgba(239,227,210,0.10)" stroke-width="1"/>
+    <line id="spoke2" stroke="rgba(239,227,210,0.10)" stroke-width="1"/>
+    <circle id="ballShadow" class="ball-shadow" r="34" fill="rgba(0,0,0,0.45)" />
+    <circle id="ball" class="ball" r="26" fill="#C9A227" />
+    <g id="vertexGroup"></g>
+  </svg>
+</div>
+
+<div class="legend" id="legend"></div>
+<div class="window-note">balance point reflects the last 14 days</div>
+
+<div class="footer">
+  <div class="action-row">
+    <button id="logBtn">view log</button>
+    <button id="syncBtn">sync devices</button>
+  </div>
+  <div class="sync-code-line" id="syncCodeDisplay">code: ——</div>
+</div>
+
+<!-- SYNC MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-tabs">
+      <div class="modal-tab active" id="tabShow">This code</div>
+      <div class="modal-tab" id="tabEnter">Enter a code</div>
+    </div>
+    <div class="tab-panel active" id="panelShow">
+      <h2>Your sync code</h2>
+      <p>Enter this on your other device to see the same balance there.</p>
+      <div class="modal-code-display" id="codeDisplayBig">------</div>
+      <div class="modal-btn-row">
+        <button class="secondary" id="copyCodeBtn">Copy</button>
+        <button class="primary" id="closeModalBtn1">Done</button>
+      </div>
+    </div>
+    <div class="tab-panel" id="panelEnter">
+      <h2>Link a device</h2>
+      <p>Enter the sync code shown on your other device. This replaces the code currently on this device.</p>
+      <div class="modal-error" id="enterError"></div>
+      <input id="codeInput" placeholder="e.g. 7QK294" maxlength="8" autocapitalize="characters" autocomplete="off" />
+      <div class="modal-btn-row">
+        <button class="secondary" id="closeModalBtn2">Cancel</button>
+        <button class="primary" id="linkBtn">Link device</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOG MODAL -->
+<div class="modal-overlay" id="logOverlay">
+  <div class="modal wide">
+    <div class="log-header-row">
+      <h2 style="margin:0;">Activity log</h2>
+      <button class="log-close-btn" id="closeLogBtn">&times;</button>
+    </div>
+
+    <div class="modal-tabs">
+      <div class="modal-tab active" id="logTabEntries">Entries</div>
+      <div class="modal-tab" id="logTabTrend">Daily trend</div>
+    </div>
+
+    <div class="tab-panel active" id="logPanelEntries">
+      <div class="pill-row" id="filterPills"></div>
+      <div class="log-toolbar">
+        <button class="sort-btn" id="sortToggleBtn">Newest first ↓</button>
+        <span class="row-count" id="rowCount">0 entries</span>
+      </div>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead>
+            <tr><th>Date</th><th>Time</th><th>Pillar</th></tr>
+          </thead>
+          <tbody id="logTbody"></tbody>
+        </table>
+        <div class="empty-log" id="emptyLog" style="display:none;">No entries yet — log something to see it here.</div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="logPanelTrend">
+      <div class="trend-summary" id="trendSummary"></div>
+      <div class="pill-row" id="trendFilterPills"></div>
+      <div class="log-toolbar">
+        <button class="sort-btn" id="trendSortToggleBtn">Newest first ↓</button>
+        <span class="row-count" id="trendRowCount">0 days</span>
+      </div>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead>
+            <tr><th>Date</th><th>Sleep</th><th>Food</th><th>Move</th><th>Balance</th></tr>
+          </thead>
+          <tbody id="trendTbody"></tbody>
+        </table>
+        <div class="empty-log" id="emptyTrend" style="display:none;">Not enough history yet.</div>
+      </div>
+    </div>
+
+    <div class="log-footer">
+      <span class="row-count" id="exportHint">exports what's shown above</span>
+      <button class="export-btn" id="exportBtn">Export to Excel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ============================================================
+   CONFIG — fill these in from your Supabase project settings
+   (Project Settings → API). Then this file is ready to deploy.
+   ============================================================ */
+const SUPABASE_URL = "YOUR_SUPABASE_URL"; // e.g. https://abcxyz.supabase.co
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+/* ============================================================ */
+
+const PILLARS = [
+  { key: "sleep",    label: "Sleep",    color: "#4B5D34" },
+  { key: "food",     label: "Food",     color: "#8C3A2B" },
+  { key: "movement", label: "Movement", color: "#C1652F" },
+];
+
+const WINDOW_DAYS = 14;
+const LS_KEY = "balance_sync_code";
+
+let syncCode = localStorage.getItem(LS_KEY);
+let entries = []; // { pillar, created_at }
+let logFilter = "all";
+let logSortDir = "desc";
+let trendFilter = "all";
+let trendSortDir = "desc";
+let activeLogTab = "entries";
+
+const CX = 190, CY = 205, R = 140;
+const angles = [-90, 150, 30];
+const vertices = angles.map(a => {
+  const rad = a * Math.PI / 180;
+  return { x: CX + R * Math.cos(rad), y: CY + R * Math.sin(rad) };
+});
+
+function initGeometry() {
+  const poly = vertices.map(v => `${v.x},${v.y}`).join(" ");
+  document.getElementById('refTriangle').setAttribute('points', poly);
+
+  vertices.forEach((v, i) => {
+    document.getElementById(`spoke${i}`).setAttribute('x1', CX);
+    document.getElementById(`spoke${i}`).setAttribute('y1', CY);
+    document.getElementById(`spoke${i}`).setAttribute('x2', v.x);
+    document.getElementById(`spoke${i}`).setAttribute('y2', v.y);
+  });
+
+  const group = document.getElementById('vertexGroup');
+  group.innerHTML = '';
+  PILLARS.forEach((p, i) => {
+    const v = vertices[i];
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "vertex-btn");
+    g.setAttribute("data-pillar", p.key);
+
+    const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    hit.setAttribute("cx", v.x);
+    hit.setAttribute("cy", v.y);
+    hit.setAttribute("r", 46);
+    hit.setAttribute("class", "vertex-hit");
+    g.appendChild(hit);
+
+    const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    core.setAttribute("cx", v.x);
+    core.setAttribute("cy", v.y);
+    core.setAttribute("r", 34);
+    core.setAttribute("fill", p.color);
+    core.setAttribute("class", "vertex-core");
+    core.setAttribute("id", `core-${p.key}`);
+    g.appendChild(core);
+
+    const count = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    count.setAttribute("x", v.x);
+    count.setAttribute("y", v.y + 3);
+    count.setAttribute("class", "vcount");
+    count.setAttribute("id", `count-${p.key}`);
+    count.textContent = "0";
+    g.appendChild(count);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const isTop = v.y < CY;
+    label.setAttribute("x", v.x);
+    label.setAttribute("y", isTop ? v.y - 46 : v.y + 54);
+    label.setAttribute("class", "vlabel");
+    label.textContent = p.label;
+    group.appendChild(label);
+
+    g.addEventListener('click', () => logEntry(p.key));
+    group.appendChild(g);
+  });
+
+  const legend = document.getElementById('legend');
+  legend.innerHTML = PILLARS.map(p =>
+    `<span class="legend-item"><span class="dot" style="background:${p.color}"></span>${p.label}</span>`
+  ).join('');
+
+  const pillRow = document.getElementById('filterPills');
+  const allPill = `<button class="pill active" data-filter="all">All</button>`;
+  const pillars = PILLARS.map(p => `<button class="pill" data-filter="${p.key}">${p.label}</button>`).join('');
+  pillRow.innerHTML = allPill + pillars;
+  pillRow.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pillRow.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      logFilter = btn.getAttribute('data-filter');
+      renderLog();
+    });
+  });
+
+  const trendPillRow = document.getElementById('trendFilterPills');
+  const trendOptions = [
+    { key: 'all', label: 'All' },
+    { key: 'balanced', label: 'Balanced' },
+    ...PILLARS.map(p => ({ key: `leaning-${p.key}`, label: `Leaning ${p.label}` })),
+    { key: 'inactive', label: 'Inactive' },
+  ];
+  trendPillRow.innerHTML = trendOptions.map((o, i) =>
+    `<button class="pill ${i === 0 ? 'active' : ''}" data-trend-filter="${o.key}">${o.label}</button>`
+  ).join('');
+  trendPillRow.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      trendPillRow.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      trendFilter = btn.getAttribute('data-trend-filter');
+      renderTrend();
+    });
+  });
+}
+
+function genCode() {
+  const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  let s = "";
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+async function ensureSyncCode() {
+  if (!syncCode) {
+    syncCode = genCode();
+    localStorage.setItem(LS_KEY, syncCode);
+  }
+  document.getElementById('syncCodeDisplay').textContent = `code: ${syncCode}`;
+  document.getElementById('codeDisplayBig').textContent = syncCode;
+}
+
+async function sbFetch(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Supabase error ${res.status}: ${t}`);
+  }
+  return res;
+}
+
+async function loadEntries() {
+  setStatus("syncing…");
+  try {
+    const res = await sbFetch(
+      `pillar_entries?sync_code=eq.${encodeURIComponent(syncCode)}&order=created_at.desc&limit=2000`
+    );
+    entries = await res.json();
+    setStatus(`synced · ${entries.length} total logged`);
+  } catch (e) {
+    console.error(e);
+    setStatus("offline — showing last known state");
+  }
+  render();
+  renderLog();
+  renderTrend();
+}
+
+async function logEntry(pillarKey) {
+  const nowIso = new Date().toISOString();
+  const optimistic = { pillar: pillarKey, created_at: nowIso, _pending: true };
+  entries.unshift(optimistic);
+  render();
+  renderLog();
+  renderTrend();
+  bounceVertex(pillarKey);
+  showToast(`${labelFor(pillarKey)} logged`);
+
+  try {
+    await sbFetch('pillar_entries', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ sync_code: syncCode, pillar: pillarKey, created_at: nowIso })
+    });
+    setStatus(`synced · ${entries.length} total logged`);
+  } catch (e) {
+    console.error(e);
+    setStatus("save failed — check connection");
+  }
+}
+
+function labelFor(key) {
+  return PILLARS.find(p => p.key === key)?.label || key;
+}
+function colorFor(key) {
+  return PILLARS.find(p => p.key === key)?.color || '#C9A227';
+}
+
+function bounceVertex(key) {
+  const el = document.getElementById(`core-${key}`);
+  if (!el) return;
+  el.style.transform = 'scale(1.15)';
+  setTimeout(() => { el.style.transform = 'scale(1)'; }, 180);
+}
+
+function setStatus(text) {
+  document.getElementById('statusLine').textContent = text;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+// ---------- balance render ----------
+function render() {
+  const cutoff = Date.now() - WINDOW_DAYS * 86400000;
+  const windowCounts = {};
+  PILLARS.forEach(p => { windowCounts[p.key] = 0; });
+
+  entries.forEach(e => {
+    const t = new Date(e.created_at).getTime();
+    if (t >= cutoff && windowCounts[e.pillar] !== undefined) windowCounts[e.pillar]++;
+  });
+
+  PILLARS.forEach(p => {
+    const el = document.getElementById(`count-${p.key}`);
+    if (el) el.textContent = windowCounts[p.key];
+  });
+
+  const w = PILLARS.map(p => windowCounts[p.key]);
+  const sum = w.reduce((a,b) => a+b, 0);
+  let bx = CX, by = CY;
+  if (sum > 0) {
+    bx = vertices.reduce((acc, v, i) => acc + v.x * w[i], 0) / sum;
+    by = vertices.reduce((acc, v, i) => acc + v.y * w[i], 0) / sum;
+    bx = CX + (bx - CX) * 0.78;
+    by = CY + (by - CY) * 0.78;
+  }
+
+  document.getElementById('ball').setAttribute('cx', bx);
+  document.getElementById('ball').setAttribute('cy', by);
+  document.getElementById('ballShadow').setAttribute('cx', bx);
+  document.getElementById('ballShadow').setAttribute('cy', by + 5);
+
+  let heaviestIdx = 0;
+  for (let i = 1; i < w.length; i++) if (w[i] > w[heaviestIdx]) heaviestIdx = i;
+  const maxW = w[heaviestIdx];
+  const minW = Math.min(...w);
+  const imbalanced = sum > 0 && (maxW - minW) >= 3;
+  document.getElementById('ball').setAttribute('fill', imbalanced ? PILLARS[heaviestIdx].color : '#C9A227');
+}
+
+// ---------- log render ----------
+function getFilteredSortedEntries() {
+  let rows = entries.filter(e => logFilter === 'all' || e.pillar === logFilter);
+  rows = rows.slice().sort((a, b) => {
+    const ta = new Date(a.created_at).getTime();
+    const tb = new Date(b.created_at).getTime();
+    return logSortDir === 'desc' ? tb - ta : ta - tb;
+  });
+  return rows;
+}
+
+function renderLog() {
+  const rows = getFilteredSortedEntries();
+  const tbody = document.getElementById('logTbody');
+  const emptyEl = document.getElementById('emptyLog');
+  const countEl = document.getElementById('rowCount');
+
+  countEl.textContent = `${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}`;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  tbody.innerHTML = rows.map(e => {
+    const d = new Date(e.created_at);
+    const dateStr = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const color = colorFor(e.pillar);
+    const label = labelFor(e.pillar);
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${timeStr}</td>
+      <td><span class="pillar-chip"><span class="dot" style="background:${color}"></span>${label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function exportToExcel() {
+  if (activeLogTab === 'trend') {
+    exportTrendToExcel();
+    return;
+  }
+  const rows = getFilteredSortedEntries();
+  if (rows.length === 0) {
+    showToast('Nothing to export yet');
+    return;
+  }
+  if (typeof XLSX === 'undefined') {
+    showToast('Export library failed to load — check connection');
+    return;
+  }
+  const data = rows.map(e => {
+    const d = new Date(e.created_at);
+    return {
+      Date: d.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }),
+      Time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true }),
+      Pillar: labelFor(e.pillar),
+      Timestamp: e.created_at
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 26 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Balance Log');
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `balance-log-${stamp}.xlsx`);
+  showToast('Excel file downloaded');
+}
+
+// ---------- daily balance trend ----------
+function computeDailyStates() {
+  if (entries.length === 0) return [];
+  const times = entries.map(e => new Date(e.created_at).getTime());
+  const minDate = new Date(Math.min(...times));
+  const startDay = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+  const today = new Date();
+  const endDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const days = [];
+  for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
+    const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    const windowStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (WINDOW_DAYS - 1));
+
+    const counts = { sleep: 0, food: 0, movement: 0 };
+    entries.forEach(e => {
+      const t = new Date(e.created_at).getTime();
+      if (t >= windowStart.getTime() && t <= dayEnd.getTime() && counts[e.pillar] !== undefined) {
+        counts[e.pillar]++;
+      }
+    });
+
+    const w = PILLARS.map(p => counts[p.key]);
+    const sum = w.reduce((a, b) => a + b, 0);
+    let state = 'inactive';
+    let heaviestKey = null;
+    if (sum > 0) {
+      let hi = 0;
+      for (let i = 1; i < w.length; i++) if (w[i] > w[hi]) hi = i;
+      const maxW = w[hi], minW = Math.min(...w);
+      if (maxW - minW >= 3) { state = 'leaning'; heaviestKey = PILLARS[hi].key; }
+      else state = 'balanced';
+    }
+    days.push({ date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), counts, state, heaviestKey, sum });
+  }
+  return days;
+}
+
+function stateFilterMatches(day, filter) {
+  if (filter === 'all') return true;
+  if (filter === 'balanced') return day.state === 'balanced';
+  if (filter === 'inactive') return day.state === 'inactive';
+  if (filter.startsWith('leaning-')) {
+    const key = filter.replace('leaning-', '');
+    return day.state === 'leaning' && day.heaviestKey === key;
+  }
+  return true;
+}
+
+function stateLabel(day) {
+  if (day.state === 'balanced') return { text: 'Balanced', color: '#C9A227' };
+  if (day.state === 'inactive') return { text: 'Inactive', color: '#6b6259' };
+  const p = PILLARS.find(p => p.key === day.heaviestKey);
+  return { text: `Leaning ${p.label}`, color: p.color };
+}
+
+function getFilteredSortedDays() {
+  const all = computeDailyStates();
+  let rows = all.filter(d => stateFilterMatches(d, trendFilter));
+  rows = rows.sort((a, b) => trendSortDir === 'desc' ? b.date - a.date : a.date - b.date);
+  return rows;
+}
+
+function renderTrend() {
+  const allDays = computeDailyStates();
+  const rows = getFilteredSortedDays();
+
+  // summary chips across full (unfiltered) history
+  const summaryEl = document.getElementById('trendSummary');
+  const counts = { balanced: 0, inactive: 0 };
+  PILLARS.forEach(p => counts[p.key] = 0);
+  allDays.forEach(d => {
+    if (d.state === 'balanced') counts.balanced++;
+    else if (d.state === 'inactive') counts.inactive++;
+    else if (d.heaviestKey) counts[d.heaviestKey]++;
+  });
+  const chips = [
+    { label: 'Balanced', num: counts.balanced, color: '#C9A227' },
+    ...PILLARS.map(p => ({ label: p.label, num: counts[p.key], color: p.color })),
+    { label: 'Inactive', num: counts.inactive, color: '#6b6259' },
+  ];
+  summaryEl.innerHTML = chips.map(c =>
+    `<div class="trend-chip"><span class="dot" style="background:${c.color}"></span><span class="num">${c.num}</span><span class="lbl">${c.label}</span></div>`
+  ).join('');
+
+  const tbody = document.getElementById('trendTbody');
+  const emptyEl = document.getElementById('emptyTrend');
+  const countEl = document.getElementById('trendRowCount');
+  countEl.textContent = `${rows.length} day${rows.length === 1 ? '' : 's'}`;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  tbody.innerHTML = rows.map(d => {
+    const dateStr = d.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    const sl = stateLabel(d);
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${d.counts.sleep}</td>
+      <td>${d.counts.food}</td>
+      <td>${d.counts.movement}</td>
+      <td><span class="pillar-chip"><span class="dot" style="background:${sl.color}"></span>${sl.text}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function exportTrendToExcel() {
+  const rows = getFilteredSortedDays();
+  if (rows.length === 0) {
+    showToast('Nothing to export yet');
+    return;
+  }
+  if (typeof XLSX === 'undefined') {
+    showToast('Export library failed to load — check connection');
+    return;
+  }
+  const data = rows.map(d => {
+    const sl = stateLabel(d);
+    return {
+      Date: d.date.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }),
+      Sleep: d.counts.sleep,
+      Food: d.counts.food,
+      Movement: d.counts.movement,
+      Balance: sl.text
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 16 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Daily Balance');
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `balance-daily-trend-${stamp}.xlsx`);
+  showToast('Excel file downloaded');
+}
+
+// ---------- sync modal ----------
+const overlay = document.getElementById('modalOverlay');
+document.getElementById('syncBtn').addEventListener('click', () => overlay.classList.add('open'));
+document.getElementById('closeModalBtn1').addEventListener('click', () => overlay.classList.remove('open'));
+document.getElementById('closeModalBtn2').addEventListener('click', () => overlay.classList.remove('open'));
+overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+document.getElementById('tabShow').addEventListener('click', () => switchTab('show'));
+document.getElementById('tabEnter').addEventListener('click', () => switchTab('enter'));
+function switchTab(which) {
+  document.getElementById('tabShow').classList.toggle('active', which === 'show');
+  document.getElementById('tabEnter').classList.toggle('active', which === 'enter');
+  document.getElementById('panelShow').classList.toggle('active', which === 'show');
+  document.getElementById('panelEnter').classList.toggle('active', which === 'enter');
+  document.getElementById('enterError').textContent = '';
+}
+
+document.getElementById('copyCodeBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(syncCode);
+    showToast('Code copied');
+  } catch (e) {
+    showToast('Copy not available — select manually');
+  }
+});
+
+document.getElementById('linkBtn').addEventListener('click', async () => {
+  const input = document.getElementById('codeInput').value.trim().toUpperCase();
+  const errEl = document.getElementById('enterError');
+  if (input.length < 4) {
+    errEl.textContent = 'Enter the full code from your other device.';
+    return;
+  }
+  syncCode = input;
+  localStorage.setItem(LS_KEY, syncCode);
+  document.getElementById('syncCodeDisplay').textContent = `code: ${syncCode}`;
+  document.getElementById('codeDisplayBig').textContent = syncCode;
+  overlay.classList.remove('open');
+  showToast('Device linked');
+  await loadEntries();
+});
+
+// ---------- log modal ----------
+const logOverlay = document.getElementById('logOverlay');
+document.getElementById('logBtn').addEventListener('click', () => {
+  logOverlay.classList.add('open');
+  renderLog();
+  renderTrend();
+});
+document.getElementById('closeLogBtn').addEventListener('click', () => logOverlay.classList.remove('open'));
+logOverlay.addEventListener('click', (e) => { if (e.target === logOverlay) logOverlay.classList.remove('open'); });
+
+document.getElementById('sortToggleBtn').addEventListener('click', () => {
+  logSortDir = logSortDir === 'desc' ? 'asc' : 'desc';
+  document.getElementById('sortToggleBtn').textContent = logSortDir === 'desc' ? 'Newest first ↓' : 'Oldest first ↑';
+  renderLog();
+});
+
+document.getElementById('trendSortToggleBtn').addEventListener('click', () => {
+  trendSortDir = trendSortDir === 'desc' ? 'asc' : 'desc';
+  document.getElementById('trendSortToggleBtn').textContent = trendSortDir === 'desc' ? 'Newest first ↓' : 'Oldest first ↑';
+  renderTrend();
+});
+
+document.getElementById('logTabEntries').addEventListener('click', () => switchLogTab('entries'));
+document.getElementById('logTabTrend').addEventListener('click', () => switchLogTab('trend'));
+function switchLogTab(which) {
+  activeLogTab = which;
+  document.getElementById('logTabEntries').classList.toggle('active', which === 'entries');
+  document.getElementById('logTabTrend').classList.toggle('active', which === 'trend');
+  document.getElementById('logPanelEntries').classList.toggle('active', which === 'entries');
+  document.getElementById('logPanelTrend').classList.toggle('active', which === 'trend');
+  document.getElementById('exportHint').textContent =
+    which === 'entries' ? "exports what's shown above" : "exports the daily trend shown above";
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+
+// ---------- init ----------
+async function init() {
+  initGeometry();
+  await ensureSyncCode();
+  if (SUPABASE_URL.includes("YOUR_SUPABASE") || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE")) {
+    setStatus("not connected — add your Supabase keys in index.html");
+    render();
+    renderLog();
+    renderTrend();
+    return;
+  }
+  await loadEntries();
+}
+init();
+</script>
+</body>
+</html>
